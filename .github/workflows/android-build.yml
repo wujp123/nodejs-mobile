@@ -1,0 +1,39 @@
+name: Build Node.js for Android
+
+# 触发器：当您向 main 分支推送代码时自动运行
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: # 允许您手动点击运行
+
+jobs:
+  build:
+    # 关键：在一个原生的 Ubuntu Intel 服务器上运行
+    runs-on: ubuntu-latest
+
+    steps:
+    # 步骤 1: 检出您的项目代码
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # 步骤 2: 下载并解压 NDK
+    - name: Setup Android NDK
+      run: |
+        curl -sS -L "https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip" -o ndk.zip
+        unzip -q ndk.zip -d /tmp/
+        echo "ANDROID_NDK_HOME=/tmp/android-ndk-r21e" >> $GITHUB_ENV
+
+    # 步骤 3: (可选但推荐) 强制使用 Node.js v18
+    - name: Force Node.js v18 for compatibility
+      run: sed -i.bak 's/NODE_JS_VERSION=.*/NODE_JS_VERSION=v18.18.0/g' tools/android-configure
+
+    # 步骤 4: 执行构建
+    - name: Build for arm64
+      run: ./tools/android_build.sh $ANDROID_NDK_HOME 24 arm64
+
+    # 步骤 5: 上传构建产物
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: android-libs
+        path: out_android/
